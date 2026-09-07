@@ -221,10 +221,15 @@ class AndroidGhostlockRepository(context: Context) : GhostlockRepository {
             val binary = File(appContext.applicationInfo.nativeLibraryDir, "libghostlock.so")
             require(binary.isFile) { "missing native binary: ${binary.absolutePath}" }
             val shizukuStarter = if (shizukuRootEnabled) resolveShizukuStarter(onLog) else null
-            if (shizukuRootEnabled && shizukuStarter != null) {
+            if (shizukuRootEnabled) {
+                if (shizukuStarter == null) {
+                    // Never fall back to the KernelSU chain: loading kernelsu.ko
+                    // kills some devices. Shizuku mode failure is terminal.
+                    onLog("result: shizuku mode requested but moe.shizuku.privileged.api starter is unavailable; aborting without KernelSU fallback")
+                    return 1
+                }
                 onLog("shizuku mode: $shizukuStarter")
             } else {
-                if (shizukuRootEnabled) onLog("warning: Shizuku not installed; fallback to KernelSU chain")
                 if (prepareKsud(workDir, onLog) != null) onLog("ksud ready") else onLog("warning: ksud not found")
             }
             val ksuLog = File(workDir, KsuLogName)
