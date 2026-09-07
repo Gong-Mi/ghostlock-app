@@ -52,4 +52,6 @@
     <string name="cpu_pair_label">CPU cores</string>
     <string name="safe_mode_label">Safe mode</string>
     <string name="safe_mode_summary">Disable all modules</string>
+    <string name="shizuku_root_label">Shizuku root handoff</string>
+    <string name="shizuku_root_summary">Start moe.shizuku.privileged.api as root instead of installing KernelSU</string>
 </resources>

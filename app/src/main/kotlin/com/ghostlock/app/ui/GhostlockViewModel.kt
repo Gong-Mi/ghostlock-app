@@ -85,6 +85,11 @@ class GhostlockViewModel(
         mutableState.update { it.copy(safeModeEnabled = enabled) }
     }
 
+    fun toggleShizukuRoot(enabled: Boolean) {
+        repository.setShizukuRootEnabled(enabled)
+        mutableState.update { it.copy(shizukuRootEnabled = enabled) }
+    }
+
     fun onRun() {
         val snapshot = kernelSnapshot ?: return
         if (!snapshot.kernelSupported) {
@@ -231,6 +236,7 @@ class GhostlockViewModel(
                 cpuPairLabels = snapshot.cpuPairLabels,
                 cpuPairIndex = snapshot.selectedCpuPair,
                 safeModeEnabled = snapshot.safeModeEnabled,
+                shizukuRootEnabled = snapshot.shizukuRootEnabled,
                 exportVisible = canExport,
             )
         }

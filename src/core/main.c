@@ -536,6 +536,25 @@ static void write_root_script(void) {
       "  echo '[!] temp su unavailable; aborting' >>\"$LOG\"\n"
       "  exit 1\n"
        "fi\n"
+       "# shizuku mode: hand root to Shizuku privileged api, skip KernelSU chain\n"
+       "if [ -n \"$GHOSTLOCK_SHIZUKU_STARTER\" ]; then\n"
+       "  echo \"[*] shizuku starter=$GHOSTLOCK_SHIZUKU_STARTER\" >>\"$LOG\"\n"
+       "  if [ ! -x \"$GHOSTLOCK_SHIZUKU_STARTER\" ]; then\n"
+       "    echo '[!] shizuku starter missing or not executable; aborting' >>\"$LOG\"\n"
+       "    exit 1\n"
+       "  fi\n"
+       "  \"$GHOSTLOCK_SHIZUKU_STARTER\" >>\"$LOG\" 2>&1\n"
+       "  SHIZUKU_RC=$?\n"
+       "  echo \"[*] shizuku starter exit=$SHIZUKU_RC\" >>\"$LOG\"\n"
+       "  if [ \"$SHIZUKU_RC\" -eq 0 ]; then\n"
+       "    echo '[+] Shizuku service started as root' >>\"$LOG\"\n"
+       "  else\n"
+       "    echo '[!] Shizuku starter failed' >>\"$LOG\"\n"
+       "  fi\n"
+       "  echo 1 > /sys/fs/selinux/enforce 2>/dev/null\n"
+       "  echo \"[*] restored SELinux enforcing\" >>\"$LOG\"\n"
+       "  exit \"$SHIZUKU_RC\"\n"
+       "fi\n"
        "if grep -q '^kernelsu[[:space:]]' /proc/modules 2>/dev/null; then\n"
        "  echo \"[*] kernelsu already loaded; skipping policy restore and late-load\" >>\"$LOG\"\n"
        "  echo '[+] KernelSU already loaded' >>\"$LOG\"\n"
@@ -1247,6 +1266,38 @@ int run_exploit(int argc, char **argv) {
     pr_warning("skipping late-load: child died during W3\n");
   }
   close(pipes.uid_r);
+
+  const char *shizuku_starter = getenv("GHOSTLOCK_SHIZUKU_STARTER");
+  if (shizuku_starter && shizuku_starter[0]) {
+    /* Shizuku handoff mode: the root script started moe.shizuku.privileged.api
+     * as root instead of the KernelSU chain. Poll the app-readable log for
+     * the outcome marker (up to ~30s). */
+    int shizuku_ok = 0;
+    int shizuku_failed = 0;
+    for (int i = 0; i < 60 && !(shizuku_ok || shizuku_failed); i++) {
+      char ksu_log_path[320];
+      snprintf(ksu_log_path, sizeof(ksu_log_path), "%s/.ghostlock_ksu.log", g_home_dir);
+      FILE *lf = fopen(ksu_log_path, "r");
+      if (lf) {
+        char line[256];
+        while (fgets(line, sizeof(line), lf)) {
+          if (strstr(line, "[+] Shizuku service started as root")) shizuku_ok = 1;
+          if (strstr(line, "[!] Shizuku starter failed") ||
+              strstr(line, "shizuku starter missing or not executable"))
+            shizuku_failed = 1;
+        }
+        fclose(lf);
+      }
+      if (!(shizuku_ok || shizuku_failed)) usleep(500000);
+    }
+    if (shizuku_ok)
+      pr_success("Shizuku service started as root\n");
+    else if (shizuku_failed)
+      pr_warning("Shizuku starter failed\n");
+    else
+      pr_warning("Shizuku start pending; check log\n");
+    return 0;
+  }
 
   int kernelsu_ready = 0;
   for (int i = 0; i < 30 && !(kernelsu_ready = kernelsu_module_loaded()); i++) {

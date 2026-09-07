@@ -13,6 +13,7 @@ data class KernelSnapshot(
     val cpuPairLabels: List<String>,
     val selectedCpuPair: Int,
     val safeModeEnabled: Boolean,
+    val shizukuRootEnabled: Boolean = false,
 )
 
 enum class LogTone { Default, Error, Success, Warning, Progress }

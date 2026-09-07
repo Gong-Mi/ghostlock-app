@@ -47,6 +47,7 @@ class AndroidGhostlockRepository(context: Context) : GhostlockRepository {
     private val cpuPairLabels = mutableListOf<String>()
     private var selectedCpuPair = 0
     private var safeModeEnabled = false
+    private var shizukuRootEnabled = false
     private var pendingParsedEntries: JSONArray? = null
 
     init {
@@ -63,6 +64,7 @@ class AndroidGhostlockRepository(context: Context) : GhostlockRepository {
         cpuPairLabels = cpuPairLabels.toList(),
         selectedCpuPair = selectedCpuPair,
         safeModeEnabled = safeModeEnabled,
+        shizukuRootEnabled = shizukuRootEnabled,
     )
 
     override fun selectCpuPair(index: Int) {
@@ -76,6 +78,10 @@ class AndroidGhostlockRepository(context: Context) : GhostlockRepository {
 
     override fun setSafeModeEnabled(enabled: Boolean) {
         safeModeEnabled = enabled
+    }
+
+    override fun setShizukuRootEnabled(enabled: Boolean) {
+        shizukuRootEnabled = enabled
     }
 
     override suspend fun exportCandidates(): List<OffsetCandidate> {
@@ -214,7 +220,13 @@ class AndroidGhostlockRepository(context: Context) : GhostlockRepository {
         return try {
             val binary = File(appContext.applicationInfo.nativeLibraryDir, "libghostlock.so")
             require(binary.isFile) { "missing native binary: ${binary.absolutePath}" }
-            if (prepareKsud(workDir, onLog) != null) onLog("ksud ready") else onLog("warning: ksud not found")
+            val shizukuStarter = if (shizukuRootEnabled) resolveShizukuStarter(onLog) else null
+            if (shizukuRootEnabled && shizukuStarter != null) {
+                onLog("shizuku mode: $shizukuStarter")
+            } else {
+                if (shizukuRootEnabled) onLog("warning: Shizuku not installed; fallback to KernelSU chain")
+                if (prepareKsud(workDir, onLog) != null) onLog("ksud ready") else onLog("warning: ksud not found")
+            }
             val ksuLog = File(workDir, KsuLogName)
             ksuLog.delete()
             val nativeLog = File(workDir, ".ghostlock_native.log")
@@ -249,6 +261,7 @@ class AndroidGhostlockRepository(context: Context) : GhostlockRepository {
                         environment()["GHOSTLOCK_CONSUMER_CORE"] = pair.consumer.toString()
                     }
                     if (safeModeEnabled) environment()["GHOSTLOCK_DISABLE_MODULES"] = "1"
+                    if (shizukuStarter != null) environment()["GHOSTLOCK_SHIZUKU_STARTER"] = shizukuStarter
                 }
             try {
                 runProcess(command, onLog = {}, captureOutput = false)
@@ -464,6 +477,21 @@ class AndroidGhostlockRepository(context: Context) : GhostlockRepository {
 
     private fun firstValidProperty(vararg keys: String): String? =
         keys.asSequence().firstNotNullOfOrNull { validDeviceName(systemProperty(it)) }
+
+    private fun resolveShizukuStarter(onLog: (String) -> Unit): String? {
+        val packageName = "moe.shizuku.privileged.api"
+        val appInfo = runCatching { appContext.packageManager.getApplicationInfo(packageName, 0) }.getOrNull()
+        if (appInfo == null) {
+            onLog("Shizuku (moe.shizuku.privileged.api) not installed")
+            return null
+        }
+        val starter = File(appInfo.nativeLibraryDir, "libshizuku.so")
+        if (!starter.isFile) {
+            onLog("shizuku starter missing: ${starter.absolutePath}")
+            return null
+        }
+        return starter.absolutePath
+    }
 
     private fun prepareKsud(workDir: File, onLog: (String) -> Unit): File? {
         val packages = listOf("me.weishu.kernelsu.pr", "me.weishu.kernelsu", "com.resukisu.resukisu", "com.kowx712.supermanager")

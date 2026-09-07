@@ -101,6 +101,7 @@ data class GhostlockUiState(
     val cpuPairLabels: List<String> = emptyList(),
     val cpuPairIndex: Int = 0,
     val safeModeEnabled: Boolean = false,
+    val shizukuRootEnabled: Boolean = false,
     val executionSheetVisible: Boolean = false,
     val executionSheetDismissible: Boolean = false,
     val dialogVisible: Boolean = false,
@@ -132,6 +133,7 @@ interface GhostlockActions {
     fun onExportOffsets()
     fun onCpuPairSelected(index: Int)
     fun onSafeModeChanged(enabled: Boolean)
+    fun onShizukuRootChanged(enabled: Boolean)
     fun onDialogItemSelected(index: Int)
     fun onDialogInputChange(value: String)
     fun onDialogConfirm(value: String)
@@ -689,6 +691,14 @@ private fun AdvancedOptions(
     actions: GhostlockActions,
 ) {
     Column {
+        Card(modifier = Modifier.padding(top = 12.dp)) {
+            SwitchPreference(
+                checked = state.shizukuRootEnabled,
+                onCheckedChange = actions::onShizukuRootChanged,
+                title = stringResource(R.string.shizuku_root_label),
+                summary = stringResource(R.string.shizuku_root_summary),
+            )
+        }
         AdvancedAction(
             text = stringResource(R.string.action_import_offsets),
             onClick = actions::onImportOffsets,
