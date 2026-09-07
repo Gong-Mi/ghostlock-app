@@ -7,6 +7,7 @@
         <package android:name="me.weishu.kernelsu" />
         <package android:name="com.resukisu.resukisu" />
         <package android:name="com.kowx712.supermanager" />
+        <package android:name="moe.shizuku.privileged.api" />
     </queries>
     <application
         android:name=".GhostlockApplication"
