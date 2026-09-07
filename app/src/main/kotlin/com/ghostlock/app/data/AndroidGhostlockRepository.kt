@@ -228,7 +228,7 @@ class AndroidGhostlockRepository(context: Context) : GhostlockRepository {
                     onLog("result: shizuku mode requested but moe.shizuku.privileged.api starter is unavailable; aborting without KernelSU fallback")
                     return 1
                 }
-                onLog("shizuku mode: $shizukuStarter")
+                onLog("shizuku mode: ${shizukuStarter.starter}")
             } else {
                 if (prepareKsud(workDir, onLog) != null) onLog("ksud ready") else onLog("warning: ksud not found")
             }
@@ -266,7 +266,10 @@ class AndroidGhostlockRepository(context: Context) : GhostlockRepository {
                         environment()["GHOSTLOCK_CONSUMER_CORE"] = pair.consumer.toString()
                     }
                     if (safeModeEnabled) environment()["GHOSTLOCK_DISABLE_MODULES"] = "1"
-                    if (shizukuStarter != null) environment()["GHOSTLOCK_SHIZUKU_STARTER"] = shizukuStarter
+                    if (shizukuStarter != null) {
+                        environment()["GHOSTLOCK_SHIZUKU_STARTER"] = shizukuStarter.starter
+                        environment()["GHOSTLOCK_SHIZUKU_APK"] = shizukuStarter.managerApk
+                    }
                 }
             try {
                 runProcess(command, onLog = {}, captureOutput = false)
@@ -483,7 +486,9 @@ class AndroidGhostlockRepository(context: Context) : GhostlockRepository {
     private fun firstValidProperty(vararg keys: String): String? =
         keys.asSequence().firstNotNullOfOrNull { validDeviceName(systemProperty(it)) }
 
-    private fun resolveShizukuStarter(onLog: (String) -> Unit): String? {
+    private class ShizukuStarter(val starter: String, val managerApk: String)
+
+    private fun resolveShizukuStarter(onLog: (String) -> Unit): ShizukuStarter? {
         val packageName = "moe.shizuku.privileged.api"
         val appInfo = runCatching { appContext.packageManager.getApplicationInfo(packageName, 0) }.getOrNull()
         if (appInfo == null) {
@@ -495,7 +500,12 @@ class AndroidGhostlockRepository(context: Context) : GhostlockRepository {
             onLog("shizuku starter missing: ${starter.absolutePath}")
             return null
         }
-        return starter.absolutePath
+        // Resolved at runtime: the randomized /data/app/~~.../pkg-.../ path
+        // changes on every Shizuku update. The root script passes this to the
+        // starter via --apk= so it never has to run `pm path` as root (that
+        // lookup can fail with "Can't find service: package" in the
+        // post-exploit context and would kill the handoff).
+        return ShizukuStarter(starter.absolutePath, appInfo.sourceDir)
     }
 
     private fun prepareKsud(workDir: File, onLog: (String) -> Unit): File? {
