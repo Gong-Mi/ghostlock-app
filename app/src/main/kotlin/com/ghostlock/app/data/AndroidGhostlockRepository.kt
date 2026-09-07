@@ -466,9 +466,9 @@ class AndroidGhostlockRepository(context: Context) : GhostlockRepository {
         keys.asSequence().firstNotNullOfOrNull { validDeviceName(systemProperty(it)) }
 
     private fun prepareKsud(workDir: File, onLog: (String) -> Unit): File? {
-        // Prefer the ksud bundled in this APK (e.g. an XRing-tuned ReSukiSU build);
-        // copying from an installed manager app (me.weishu.kernelsu) can pick a
-        // KSU build whose syscall hooks break adbd exec on non-official kernels.
+        // Prefer the ksud bundled in this APK (e.g. an XRing-tuned KernelSU build);
+        // copying from an installed manager app can pick a KSU build whose syscall
+        // hooks break adbd exec on non-official kernels.
         runCatching {
             val appInfo = appContext.packageManager.getApplicationInfo(appContext.packageName, 0)
             val bundled = File(appInfo.nativeLibraryDir, "libksud.so")
