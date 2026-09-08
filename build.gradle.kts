@@ -53,7 +53,7 @@ private fun extractNdkTools(): NdkTools {
     return NdkTools(
         clang = File(
             binDir,
-            if (isWindows) "aarch64-linux-android34-clang.cmd" else "aarch64-linux-android34-clang",
+            if (isWindows) "aarch64-linux-android35-clang.cmd" else "aarch64-linux-android35-clang",
         ).absolutePath,
         ar = File(binDir, if (isWindows) "llvm-ar.exe" else "llvm-ar").absolutePath,
     )
