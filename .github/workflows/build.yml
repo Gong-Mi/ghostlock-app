@@ -95,9 +95,8 @@ jobs:
       - name: Upload Release APK
         uses: actions/upload-artifact@v7
         with:
-          name: GhostLock-release
+          name: GhostLock-release.apk
           path: GhostLock-release.apk
-          archive: false
 
   post_telegram:
     needs: [build-apk]
